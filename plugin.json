@@ -1,0 +1,25 @@
+{
+    "pluginName": "APK分析工具",
+    "version": "1.0.0",
+    "description": "查看APK文件信息，包括签名、包名、版本等",
+    "author": "Antigravity",
+    "homepage": "",
+    "main": "index.html",
+    "preload": "preload.js",
+    "logo": "logo.png",
+    "features": [
+        {
+            "code": "apk",
+            "explain": "APK分析",
+            "cmds": [
+                "APK",
+                {
+                    "type": "files",
+                    "label": "APK分析",
+                    "fileType": "file",
+                    "match": "/\\.apk$/i"
+                }
+            ]
+        }
+    ]
+}
