@@ -8,5 +8,6 @@ export default defineConfig({
     react(),
     nodePolyfills()
   ],
-  base: './'
+  // 如果是 CI 环境 (GitHub Actions) 部署，则使用仓库名 /APKTool/，否则本地开发使用 ./
+  base: process.env.CI ? '/APKTool/' : './'
 })
