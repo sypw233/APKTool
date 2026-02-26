@@ -1,6 +1,10 @@
 # APK 分析工具 (APK Analyzer)
 
+<<<<<<< HEAD
 这是一个基于React开发的 APK 解析与信息查看工具。它最初设计为 [uTools](https://u.tools/) 插件，但也完全支持作为普通的网页独立在一台服务器或 GitHub Pages 上运行。
+=======
+这是一个基于 Vue（实际使用 React + Vite 构建）开发的 APK 解析与信息查看工具。它最初设计为 [uTools](https://u.tools/) 插件，但也完全支持作为普通的网页独立在一台服务器或 GitHub Pages 上运行。
+>>>>>>> 518a9929743e741e6407cd610ed895505e9e9056
 
 ## 主要功能
 
