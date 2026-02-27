@@ -1,26 +1,6 @@
 import React, { useCallback } from 'react'
 
 const ApkDropZone = ({ onFileSelected }) => {
-  const handleDrop = useCallback((e) => {
-    e.preventDefault()
-    e.stopPropagation()
-
-    const files = e.dataTransfer.files
-    if (files && files.length > 0) {
-      const file = files[0]
-      if (file.name.toLowerCase().endsWith('.apk')) {
-        onFileSelected(file)
-      } else {
-        alert('请选择有效的 APK 文件')
-      }
-    }
-  }, [onFileSelected])
-
-  const handleDragOver = useCallback((e) => {
-    e.preventDefault()
-    e.stopPropagation()
-  }, [])
-
   const handleFileChange = useCallback((e) => {
     const files = e.target.files
     if (files && files.length > 0) {
@@ -56,18 +36,22 @@ const ApkDropZone = ({ onFileSelected }) => {
 
   return (
     <div
-      onDrop={handleDrop}
-      onDragOver={handleDragOver}
       onClick={handleClick}
       style={{
-        border: '2px dashed #cccccc',
-        borderRadius: '10px',
+        border: '3px dashed #cccccc',
+        borderRadius: '16px',
         padding: '40px',
         textAlign: 'center',
         cursor: 'pointer',
-        margin: '20px',
         userSelect: 'none',
-        transition: 'border-color 0.3s'
+        transition: 'all 0.3s ease',
+        height: '100%',
+        width: '100%',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        boxSizing: 'border-box'
       }}
       className="drop-zone"
     >

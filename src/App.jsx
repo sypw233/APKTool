@@ -139,28 +139,54 @@ function App() {
     }
   }
 
-  const handleDrop = useCallback((e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragOver(false)
+  // 全局拖拽事件处理
+  useEffect(() => {
+    const handleGlobalDragEnter = (e) => {
+      e.preventDefault()
+      // 只处理文件拖拽
+      if (e.dataTransfer?.types?.includes('Files')) {
+        setIsDragOver(true)
+      }
+    }
 
+    // 防止浏览器默认行为（例如打开文件）
+    const handleGlobalDragOver = (e) => {
+      e.preventDefault()
+    }
+
+    const handleGlobalDrop = (e) => {
+      e.preventDefault()
+    }
+
+    window.addEventListener('dragenter', handleGlobalDragEnter)
+    window.addEventListener('dragover', handleGlobalDragOver)
+    window.addEventListener('drop', handleGlobalDrop)
+
+    return () => {
+      window.removeEventListener('dragenter', handleGlobalDragEnter)
+      window.removeEventListener('dragover', handleGlobalDragOver)
+      window.removeEventListener('drop', handleGlobalDrop)
+    }
+  }, [])
+
+  const handleOverlayDragLeave = (e) => {
+    e.preventDefault()
+    setIsDragOver(false)
+  }
+
+  const handleOverlayDragOver = (e) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'copy'
+  }
+
+  const handleOverlayDrop = (e) => {
+    e.preventDefault()
+    setIsDragOver(false)
     const files = e.dataTransfer.files
     if (files && files.length > 0) {
       handleFile(files[0])
     }
-  }, [])
-
-  const handleDragOver = useCallback((e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragOver(true)
-  }, [])
-
-  const handleDragLeave = useCallback((e) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setIsDragOver(false)
-  }, [])
+  }
 
   const handleFileSelected = (file) => {
     handleFile(file)
@@ -173,63 +199,68 @@ function App() {
   }
 
   return (
-    <div
-      className={`container ${isDragOver ? 'drag-over' : ''}`}
-      onDrop={handleDrop}
-      onDragOver={handleDragOver}
-      onDragLeave={handleDragLeave}
-      style={{
-        minHeight: '100vh',
-        boxSizing: 'border-box',
-        paddingTop: 0 // Remove top whitespace
-      }}
-    >
+    <>
       {error && (
         <div style={{
+          position: 'fixed',
+          top: '20px',
+          left: '50%',
+          transform: 'translateX(-50%)',
           color: '#721c24',
           backgroundColor: '#f8d7da',
           borderColor: '#f5c6cb',
           padding: '10px',
-          margin: '20px auto',
           maxWidth: '600px',
           borderRadius: '5px',
-          textAlign: 'center'
+          textAlign: 'center',
+          zIndex: 10000,
+          boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
         }}>
           {error}
         </div>
       )}
 
       {isDragOver && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          color: 'white',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          fontSize: '2em',
-          zIndex: 9999,
-          pointerEvents: 'none'
-        }}>
-          释放以解析 APK
+        <div
+          onDragLeave={handleOverlayDragLeave}
+          onDragOver={handleOverlayDragOver}
+          onDrop={handleOverlayDrop}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            color: 'white',
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            fontSize: '2em',
+            zIndex: 9999
+          }}
+        >
+          <span style={{ pointerEvents: 'none' }}>释放以解析 APK</span>
         </div>
       )}
 
       {loading ? (
-        <div style={{ textAlign: 'center', marginTop: '50px', color: '#666' }}>
-          <div className="loading-spinner"></div>
-          <p>正在解析 APK 文件，请稍候...</p>
+        <div className="container" style={{ minHeight: '100vh', boxSizing: 'border-box' }}>
+          <div style={{ textAlign: 'center', marginTop: '50px', color: '#666' }}>
+            <div className="loading-spinner"></div>
+            <p>正在解析 APK 文件，请稍候...</p>
+          </div>
         </div>
       ) : apkInfo ? (
-        <ApkInfoViewer apkInfo={apkInfo} fileInfo={fileInfo} onReset={handleReset} />
+        <div className="container" style={{ minHeight: '100vh', boxSizing: 'border-box' }}>
+          <ApkInfoViewer apkInfo={apkInfo} fileInfo={fileInfo} onReset={handleReset} />
+        </div>
       ) : (
-        <ApkDropZone onFileSelected={handleFileSelected} />
+        <div style={{ width: '100vw', height: '100vh', padding: '2rem', boxSizing: 'border-box' }}>
+          <ApkDropZone onFileSelected={handleFileSelected} />
+        </div>
       )}
-    </div>
+    </>
   )
 }
 
