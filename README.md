@@ -1,10 +1,8 @@
 # APK 分析工具 (APK Analyzer)
 
-<<<<<<< HEAD
+**在线体验 (GitHub Pages):** [https://sypw233.github.io/APKTool/](https://sypw233.github.io/APKTool/)
+
 这是一个基于React开发的 APK 解析与信息查看工具。它最初设计为 [uTools](https://u.tools/) 插件，但也完全支持作为普通的网页独立在一台服务器或 GitHub Pages 上运行。
-=======
-这是一个基于 Vue（实际使用 React + Vite 构建）开发的 APK 解析与信息查看工具。它最初设计为 [uTools](https://u.tools/) 插件，但也完全支持作为普通的网页独立在一台服务器或 GitHub Pages 上运行。
->>>>>>> 518a9929743e741e6407cd610ed895505e9e9056
 
 ## 主要功能
 
@@ -24,4 +22,4 @@
 
 ## 自动部署 (GitHub Pages)
 
-本项目已配置 GitHub Actions。当你将代码推送到 `main` 或 `master` 分支时，项目会自动构建并将生成的网页部署到 GitHub Pages。
+本项目已配置 GitHub Actions。当你将代码推送到 `main` 或 `master` 分支时，项目会自动构建并将生成的网页部署到 GitHub Pages: [https://sypw233.github.io/APKTool/](https://sypw233.github.io/APKTool/)
