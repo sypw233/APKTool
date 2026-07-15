@@ -1,14 +1,14 @@
-import React, { useState, useCallback, useEffect } from 'react'
+import React, { useState, useEffect } from 'react'
 import ApkDropZone from './components/ApkDropZone'
 import ApkInfoViewer from './components/ApkInfoViewer'
-import { AndroidAppParser } from '@seayoo-web/app-info'
-import ApkParser from 'app-info-parser/src/apk'
+import { parseApk } from './lib/apk-parser-unified'
 import SparkMD5 from 'spark-md5'
 import './main.css'
 
-function App() {
+function App () {
   const [apkInfo, setApkInfo] = useState(null)
   const [fileInfo, setFileInfo] = useState(null)
+  const [apkFiles, setApkFiles] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [isDragOver, setIsDragOver] = useState(false)
@@ -51,7 +51,6 @@ function App() {
     }
   }, [])
 
-
   // 计算文件哈希
   const calculateHashes = async (file) => {
     const buffer = await file.arrayBuffer()
@@ -84,6 +83,7 @@ function App() {
     setError(null)
     setApkInfo(null)
     setFileInfo(null)
+    setApkFiles(null)
 
     try {
       // 基本文件信息
@@ -98,39 +98,15 @@ function App() {
         md5: hashes.md5
       })
 
-      // 使用 @seayoo-web/app-info 解析完整 manifest (包含 activities)
-      const parser = new AndroidAppParser(file)
-      const result = await parser.parse()
-
-      if (result instanceof Error) {
-        throw new Error(result.message)
-      }
-
-      // 使用 app-info-parser 解析已解析的应用名称
-      let resolvedLabel = null
-      try {
-        const nameParser = new ApkParser(file)
-        const nameResult = await nameParser.parse()
-        const rawLabel = nameResult?.application?.label
-        if (rawLabel) {
-          // 资源解析后可能是数组(多语言), 取第一个非空字符串
-          if (Array.isArray(rawLabel)) {
-            resolvedLabel = rawLabel.find(l => typeof l === 'string' && l.length > 0 && !l.startsWith('resourceId:')) || null
-          } else if (typeof rawLabel === 'string' && rawLabel.length > 0 && !rawLabel.startsWith('resourceId:')) {
-            resolvedLabel = rawLabel
-          }
-        }
-      } catch (nameErr) {
-        console.warn('app-info-parser label resolution failed:', nameErr)
-      }
-
-      // 合并结果: 使用解析后的应用名称覆盖资源引用
-      if (resolvedLabel && result.manifest?.application) {
-        result.manifest.application.label = resolvedLabel
-      }
+      const result = await parseApk(file)
 
       console.log('Parsed APK:', result)
       setApkInfo(result)
+      setApkFiles({
+        files: result.files,
+        nativeLibs: result.nativeLibs,
+        supportedABIs: result.supportedABIs
+      })
     } catch (e) {
       console.error(e)
       setError('解析 APK 失败: ' + (e.message || '未知错误'))
@@ -195,6 +171,7 @@ function App() {
   const handleReset = () => {
     setApkInfo(null)
     setFileInfo(null)
+    setApkFiles(null)
     setError(null)
   }
 
@@ -215,7 +192,8 @@ function App() {
           textAlign: 'center',
           zIndex: 10000,
           boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
-        }}>
+        }}
+        >
           {error}
         </div>
       )}
@@ -244,22 +222,31 @@ function App() {
         </div>
       )}
 
-      {loading ? (
-        <div className="container" style={{ minHeight: '100vh', boxSizing: 'border-box' }}>
-          <div style={{ textAlign: 'center', marginTop: '50px', color: '#666' }}>
-            <div className="loading-spinner"></div>
-            <p>正在解析 APK 文件，请稍候...</p>
+      {loading
+        ? (
+          <div className='container' style={{ minHeight: '100vh', boxSizing: 'border-box' }}>
+            <div style={{ textAlign: 'center', marginTop: '50px', color: '#666' }}>
+              <div className='loading-spinner' />
+              <p>正在解析 APK 文件，请稍候...</p>
+            </div>
           </div>
-        </div>
-      ) : apkInfo ? (
-        <div className="container" style={{ minHeight: '100vh', boxSizing: 'border-box' }}>
-          <ApkInfoViewer apkInfo={apkInfo} fileInfo={fileInfo} onReset={handleReset} />
-        </div>
-      ) : (
-        <div style={{ width: '100vw', height: '100vh', padding: '2rem', boxSizing: 'border-box' }}>
-          <ApkDropZone onFileSelected={handleFileSelected} />
-        </div>
-      )}
+          )
+        : apkInfo
+          ? (
+            <div className='container' style={{ minHeight: '100vh', boxSizing: 'border-box' }}>
+              <ApkInfoViewer
+                apkInfo={apkInfo}
+                fileInfo={fileInfo}
+                apkFiles={apkFiles}
+                onReset={handleReset}
+              />
+            </div>
+            )
+          : (
+            <div style={{ width: '100vw', height: '100vh', padding: '2rem', boxSizing: 'border-box' }}>
+              <ApkDropZone onFileSelected={handleFileSelected} />
+            </div>
+            )}
     </>
   )
 }
