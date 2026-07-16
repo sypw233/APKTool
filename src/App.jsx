@@ -1,11 +1,17 @@
-import React, { useState, useEffect } from 'react'
+/* global Worker */
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import ApkDropZone from './components/ApkDropZone'
 import ApkInfoViewer from './components/ApkInfoViewer'
 import HistoryFab from './components/HistoryFab'
-import { parseApk } from './lib/apk-parser-unified'
 import { saveHistory } from './lib/history-store'
-import SparkMD5 from 'spark-md5'
 import './main.css'
+
+const STAGE_LABELS = {
+  hash: '正在计算文件哈希...',
+  zip: '正在解压 APK...',
+  manifest: '正在解析 Manifest...',
+  signature: '正在解析签名信息...'
+}
 
 function App () {
   const [apkInfo, setApkInfo] = useState(null)
@@ -14,6 +20,17 @@ function App () {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [isDragOver, setIsDragOver] = useState(false)
+  const [progress, setProgress] = useState('')
+  const workerRef = useRef(null)
+
+  useEffect(() => {
+    const worker = new Worker(
+      new URL('./lib/apk-worker.js', import.meta.url),
+      { type: 'module' }
+    )
+    workerRef.current = worker
+    return () => worker.terminate()
+  }, [])
 
   // uTools Integration
   useEffect(() => {
@@ -53,29 +70,7 @@ function App () {
     }
   }, [])
 
-  // 计算文件哈希
-  const calculateHashes = async (file) => {
-    const buffer = await file.arrayBuffer()
-
-    // SHA-1
-    const hashBuffer = await crypto.subtle.digest('SHA-1', buffer)
-    const hashArray = Array.from(new Uint8Array(hashBuffer))
-    const sha1 = hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
-
-    // SHA-256
-    const md5Buffer = await crypto.subtle.digest('SHA-256', buffer)
-    const sha256Array = Array.from(new Uint8Array(md5Buffer))
-    const sha256 = sha256Array.map(b => b.toString(16).padStart(2, '0')).join('')
-
-    // MD5
-    const spark = new SparkMD5.ArrayBuffer()
-    spark.append(buffer)
-    const md5 = spark.end()
-
-    return { sha1, sha256, md5 }
-  }
-
-  const handleFile = async (file) => {
+  const handleFile = useCallback(async (file) => {
     if (!file.name.toLowerCase().endsWith('.apk')) {
       setError('请选择有效的 APK 文件')
       return
@@ -86,53 +81,73 @@ function App () {
     setApkInfo(null)
     setFileInfo(null)
     setApkFiles(null)
+    setProgress('hash')
+
+    const worker = workerRef.current
+    if (!worker) {
+      setError('Worker 未就绪')
+      setLoading(false)
+      return
+    }
+
+    worker.onmessage = (e) => {
+      const { type } = e.data
+
+      if (type === 'progress') {
+        setProgress(e.data.stage)
+        return
+      }
+
+      if (type === 'result') {
+        const { apkInfo: info, fileInfo: fInfo, apkFiles: fFiles, hashes, filePath } = e.data.data
+        console.log('Parsed APK:', info)
+        setFileInfo(fInfo)
+        setApkInfo(info)
+        setApkFiles(fFiles)
+
+        saveHistory({
+          id: Date.now(),
+          packageName: info.basicInfo.packageName,
+          appName: info.basicInfo.appName,
+          versionName: info.basicInfo.versionName,
+          versionCode: info.basicInfo.versionCode,
+          icon: info.basicInfo.icon,
+          fileSize: file.size,
+          md5: hashes.md5,
+          filePath: filePath || file.path || file.name,
+          apkInfo: info,
+          fileInfo: fInfo,
+          apkFiles: fFiles
+        })
+
+        setLoading(false)
+        setProgress('')
+        return
+      }
+
+      if (type === 'error') {
+        setError('解析 APK 失败: ' + e.data.message)
+        setLoading(false)
+        setProgress('')
+      }
+    }
 
     try {
-      // 基本文件信息
-      const hashes = await calculateHashes(file)
-
-      const fileInfoData = {
-        name: file.name,
-        sizeBytes: file.size,
-        lastModified: new Date(file.lastModified).toLocaleString(),
-        sha1: hashes.sha1,
-        sha256: hashes.sha256,
-        md5: hashes.md5
-      }
-      setFileInfo(fileInfoData)
-
-      const result = await parseApk(file)
-
-      console.log('Parsed APK:', result)
-      setApkInfo(result)
-      const apkFilesData = {
-        files: result.files,
-        nativeLibs: result.nativeLibs,
-        supportedABIs: result.supportedABIs
-      }
-      setApkFiles(apkFilesData)
-
-      saveHistory({
-        id: Date.now(),
-        packageName: result.basicInfo.packageName,
-        appName: result.basicInfo.appName,
-        versionName: result.basicInfo.versionName,
-        versionCode: result.basicInfo.versionCode,
-        icon: result.basicInfo.icon,
+      const arrayBuffer = await file.arrayBuffer()
+      worker.postMessage({
+        type: 'parse',
+        arrayBuffer,
+        fileName: file.name,
         fileSize: file.size,
-        md5: hashes.md5,
-        filePath: file.path || file.name,
-        apkInfo: result,
-        fileInfo: fileInfoData,
-        apkFiles: apkFilesData
-      })
+        filePath: file.path || file.name
+      }, [arrayBuffer])
     } catch (e) {
       console.error(e)
-      setError('解析 APK 失败: ' + (e.message || '未知错误'))
-    } finally {
+      setError('读取文件失败: ' + (e.message || '未知错误'))
       setLoading(false)
+      setProgress('')
     }
-  }
+  }, [])
 
   // 全局拖拽事件处理
   useEffect(() => {
@@ -254,7 +269,7 @@ function App () {
           <div className='container' style={{ minHeight: '100vh', boxSizing: 'border-box' }}>
             <div style={{ textAlign: 'center', marginTop: '50px', color: '#666' }}>
               <div className='loading-spinner' />
-              <p>正在解析 APK 文件，请稍候...</p>
+              <p>{STAGE_LABELS[progress] || '正在解析 APK 文件，请稍候...'}</p>
             </div>
           </div>
           )

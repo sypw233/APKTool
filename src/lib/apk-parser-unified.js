@@ -1,6 +1,7 @@
 import JSZip from 'jszip'
 import { AndroidAppParser } from '@seayoo-web/app-info'
 import ApkParser from 'app-info-parser/src/apk'
+import SparkMD5 from 'spark-md5'
 import { parseCert } from './cert-parser'
 
 function enumerateFiles (zip) {
@@ -92,6 +93,19 @@ async function generateManifestXml (zip) {
   }
 }
 
+function needsLabelResolution (label) {
+  if (!label) return false
+  if (Array.isArray(label)) {
+    return !label.some(
+      l => typeof l === 'string' && l.length > 0 && !l.startsWith('resourceId:')
+    )
+  }
+  if (typeof label === 'string') {
+    return label.length === 0 || label.startsWith('resourceId:')
+  }
+  return true
+}
+
 function resolveLabel (rawLabel) {
   if (!rawLabel) return null
   if (Array.isArray(rawLabel)) {
@@ -105,34 +119,61 @@ function resolveLabel (rawLabel) {
   return null
 }
 
-export async function parseApk (file) {
-  const arrayBuffer = await file.arrayBuffer()
+export async function computeHashes (arrayBuffer) {
+  const hashBuffer1 = await crypto.subtle.digest('SHA-1', arrayBuffer)
+  const sha1 = Array.from(new Uint8Array(hashBuffer1))
+    .map(b => b.toString(16).padStart(2, '0')).join('')
 
+  const hashBuffer2 = await crypto.subtle.digest('SHA-256', arrayBuffer)
+  const sha256 = Array.from(new Uint8Array(hashBuffer2))
+    .map(b => b.toString(16).padStart(2, '0')).join('')
+
+  const spark = new SparkMD5.ArrayBuffer()
+  spark.append(arrayBuffer)
+  const md5 = spark.end()
+
+  return { sha1, sha256, md5 }
+}
+
+export async function parseApkFromArrayBuffer (arrayBuffer, fileName, onProgress) {
+  const progress = onProgress || (() => {})
+
+  progress('zip')
   const zip = await JSZip.loadAsync(arrayBuffer)
   const allFiles = enumerateFiles(zip)
   const supportedABIs = findABIs(zip)
   const nativeLibs = getNativeLibs(zip, supportedABIs)
 
+  const file = new File([arrayBuffer], fileName, {
+    type: 'application/vnd.android.package-archive'
+  })
+
+  progress('manifest')
   const parser = new AndroidAppParser(file)
   const result = await parser.parse()
   if (result instanceof Error) throw result
 
   let resolvedLabel = null
-  try {
-    const nameParser = new ApkParser(file)
-    const nameResult = await nameParser.parse()
-    resolvedLabel = resolveLabel(nameResult?.application?.label)
-  } catch (e) {
-    console.warn('Label resolution failed:', e)
+  const manifest = result.manifest || result
+  const currentLabel = manifest.application?.label
+
+  if (needsLabelResolution(currentLabel)) {
+    try {
+      const nameParser = new ApkParser(file)
+      const nameResult = await nameParser.parse()
+      resolvedLabel = resolveLabel(nameResult?.application?.label)
+    } catch (e) {
+      console.warn('Label resolution failed:', e)
+    }
   }
 
-  const manifest = result.manifest || result
   if (resolvedLabel && manifest.application) {
     manifest.application.label = resolvedLabel
   }
 
   const xml = await generateManifestXml(zip)
 
+  progress('signature')
   let signature = null
   try {
     const certEntry = zip.file(/META-INF\/.*\.RSA$/i)[0] || zip.file(/META-INF\/.*\.DSA$/i)[0] || zip.file(/META-INF\/.*\.EC$/i)[0]
@@ -175,4 +216,9 @@ export async function parseApk (file) {
     supportedABIs,
     files: allFiles
   }
+}
+
+export async function parseApk (file) {
+  const arrayBuffer = await file.arrayBuffer()
+  return parseApkFromArrayBuffer(arrayBuffer, file.name)
 }
