@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react'
 import ApkDropZone from './components/ApkDropZone'
 import ApkInfoViewer from './components/ApkInfoViewer'
+import HistoryFab from './components/HistoryFab'
 import { parseApk } from './lib/apk-parser-unified'
+import { saveHistory } from './lib/history-store'
 import SparkMD5 from 'spark-md5'
 import './main.css'
 
@@ -106,6 +108,18 @@ function App () {
         files: result.files,
         nativeLibs: result.nativeLibs,
         supportedABIs: result.supportedABIs
+      })
+
+      saveHistory({
+        id: Date.now(),
+        packageName: result.basicInfo.packageName,
+        appName: result.basicInfo.appName,
+        versionName: result.basicInfo.versionName,
+        versionCode: result.basicInfo.versionCode,
+        icon: result.basicInfo.icon,
+        fileSize: file.size,
+        md5: hashes.md5,
+        filePath: file.path || file.name
       })
     } catch (e) {
       console.error(e)
@@ -247,6 +261,8 @@ function App () {
               <ApkDropZone onFileSelected={handleFileSelected} />
             </div>
             )}
+
+      <HistoryFab />
     </>
   )
 }
