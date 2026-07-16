@@ -1,6 +1,7 @@
 import JSZip from 'jszip'
 import { AndroidAppParser } from '@seayoo-web/app-info'
 import ApkParser from 'app-info-parser/src/apk'
+import { parseCert } from './cert-parser'
 
 function enumerateFiles (zip) {
   const files = []
@@ -132,6 +133,17 @@ export async function parseApk (file) {
 
   const xml = await generateManifestXml(zip)
 
+  let signature = null
+  try {
+    const certEntry = zip.file(/META-INF\/.*\.RSA$/i)[0] || zip.file(/META-INF\/.*\.DSA$/i)[0] || zip.file(/META-INF\/.*\.EC$/i)[0]
+    if (certEntry) {
+      const certBuffer = await certEntry.async('arraybuffer')
+      signature = await parseCert(certBuffer)
+    }
+  } catch (e) {
+    console.warn('Signature parsing failed:', e)
+  }
+
   const basicInfo = {
     packageName: manifest.package || '',
     versionCode: manifest.versionCode || '',
@@ -158,6 +170,7 @@ export async function parseApk (file) {
     usesSdk: manifest.usesSdk || null,
     xml,
     manifest,
+    signature,
     nativeLibs,
     supportedABIs,
     files: allFiles

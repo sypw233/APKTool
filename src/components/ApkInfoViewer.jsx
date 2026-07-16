@@ -392,6 +392,7 @@ const ApkInfoViewer = ({ apkInfo, fileInfo, apkFiles, onReset }) => {
   // --- Data Extraction ---
   const { basicInfo, components, manifest } = apkInfo
   const usesPermissions = apkInfo.usesPermissions || []
+  const signature = apkInfo.signature
   const icon = basicInfo.icon
   const label = basicInfo.appName || '未知应用'
   const packageName = basicInfo.packageName
@@ -547,6 +548,21 @@ const ApkInfoViewer = ({ apkInfo, fileInfo, apkFiles, onReset }) => {
                 <div style={rowStyle}><span style={labelStyle}>MD5:</span><CopyableText text={fileInfo.md5} style={{ fontFamily: 'monospace', color: '#d63384' }} /></div>
                 <div style={rowStyle}><span style={labelStyle}>SHA-1:</span><CopyableText text={fileInfo.sha1} style={{ fontFamily: 'monospace', color: '#d63384' }} /></div>
                 <div style={rowStyle}><span style={labelStyle}>SHA-256:</span><CopyableText text={fileInfo.sha256} style={{ fontFamily: 'monospace', color: '#d63384' }} /></div>
+              </>
+            )}
+
+            {signature && (
+              <>
+                <div style={sectionStyle}>签名信息</div>
+                <div style={rowStyle}><span style={labelStyle}>主题:</span><CopyableText text={signature.subject} /></div>
+                <div style={rowStyle}><span style={labelStyle}>签发者:</span><CopyableText text={signature.issuer} /></div>
+                <div style={rowStyle}><span style={labelStyle}>序列号:</span><CopyableText text={signature.serialNumber} style={{ fontFamily: 'monospace', fontSize: '12px' }} /></div>
+                <div style={rowStyle}><span style={labelStyle}>有效期:</span><span style={valueStyle}>{signature.validNotBefore} ~ {signature.validNotAfter}</span></div>
+                <div style={rowStyle}><span style={labelStyle}>签名算法:</span><span style={valueStyle}>{signature.signatureAlgorithm}</span></div>
+                {signature.publicKeyAlgorithm && (
+                  <div style={rowStyle}><span style={labelStyle}>公钥算法:</span><span style={valueStyle}>{signature.publicKeyAlgorithm}{signature.keySize ? ` (${signature.keySize} bit)` : ''}</span></div>
+                )}
+                <div style={rowStyle}><span style={labelStyle}>指纹:</span><CopyableText text={signature.fingerprint} style={{ fontFamily: 'monospace', fontSize: '11px', lineHeight: '1.6' }} /></div>
               </>
             )}
 
