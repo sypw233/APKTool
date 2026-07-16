@@ -14,7 +14,7 @@ function formatSize (bytes) {
   return (bytes / 1024 / 1024).toFixed(1) + ' MB'
 }
 
-function HistoryFab () {
+function HistoryFab ({ onSelectRecord }) {
   const [open, setOpen] = useState(false)
   const [history, setHistory] = useState([])
   const panelRef = useRef(null)
@@ -138,7 +138,12 @@ function HistoryFab () {
                     </div>
                     )}
 
-                <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  onClick={() => { if (onSelectRecord) onSelectRecord(record) }}
+                  style={{ flex: 1, minWidth: 0, cursor: 'pointer' }}
+                  onMouseEnter={e => { e.currentTarget.style.opacity = '0.7' }}
+                  onMouseLeave={e => { e.currentTarget.style.opacity = '1' }}
+                >
                   <div style={{
                     fontSize: '13px',
                     fontWeight: 'bold',

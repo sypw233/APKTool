@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import ApkDropZone from './components/ApkDropZone'
 import ApkInfoViewer from './components/ApkInfoViewer'
 import HistoryFab from './components/HistoryFab'
+import HistoryDetail from './components/HistoryDetail'
 import { parseApk } from './lib/apk-parser-unified'
 import { saveHistory } from './lib/history-store'
 import SparkMD5 from 'spark-md5'
@@ -14,6 +15,7 @@ function App () {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [isDragOver, setIsDragOver] = useState(false)
+  const [historyDetail, setHistoryDetail] = useState(null)
 
   // uTools Integration
   useEffect(() => {
@@ -262,7 +264,10 @@ function App () {
             </div>
             )}
 
-      <HistoryFab />
+      <HistoryFab onSelectRecord={(record) => setHistoryDetail(record)} />
+      {historyDetail && (
+        <HistoryDetail record={historyDetail} onClose={() => setHistoryDetail(null)} />
+      )}
     </>
   )
 }
