@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react'
 import ApkDropZone from './components/ApkDropZone'
 import ApkInfoViewer from './components/ApkInfoViewer'
 import HistoryFab from './components/HistoryFab'
-import HistoryDetail from './components/HistoryDetail'
 import { parseApk } from './lib/apk-parser-unified'
 import { saveHistory } from './lib/history-store'
 import SparkMD5 from 'spark-md5'
@@ -15,7 +14,6 @@ function App () {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [isDragOver, setIsDragOver] = useState(false)
-  const [historyDetail, setHistoryDetail] = useState(null)
 
   // uTools Integration
   useEffect(() => {
@@ -93,24 +91,26 @@ function App () {
       // 基本文件信息
       const hashes = await calculateHashes(file)
 
-      setFileInfo({
+      const fileInfoData = {
         name: file.name,
         sizeBytes: file.size,
         lastModified: new Date(file.lastModified).toLocaleString(),
         sha1: hashes.sha1,
         sha256: hashes.sha256,
         md5: hashes.md5
-      })
+      }
+      setFileInfo(fileInfoData)
 
       const result = await parseApk(file)
 
       console.log('Parsed APK:', result)
       setApkInfo(result)
-      setApkFiles({
+      const apkFilesData = {
         files: result.files,
         nativeLibs: result.nativeLibs,
         supportedABIs: result.supportedABIs
-      })
+      }
+      setApkFiles(apkFilesData)
 
       saveHistory({
         id: Date.now(),
@@ -121,7 +121,10 @@ function App () {
         icon: result.basicInfo.icon,
         fileSize: file.size,
         md5: hashes.md5,
-        filePath: file.path || file.name
+        filePath: file.path || file.name,
+        apkInfo: result,
+        fileInfo: fileInfoData,
+        apkFiles: apkFilesData
       })
     } catch (e) {
       console.error(e)
@@ -182,6 +185,14 @@ function App () {
 
   const handleFileSelected = (file) => {
     handleFile(file)
+  }
+
+  const handleHistorySelect = (record) => {
+    if (!record.apkInfo) return
+    setApkInfo(record.apkInfo)
+    setFileInfo(record.fileInfo || null)
+    setApkFiles(record.apkFiles || null)
+    setError(null)
   }
 
   const handleReset = () => {
@@ -264,10 +275,7 @@ function App () {
             </div>
             )}
 
-      <HistoryFab onSelectRecord={(record) => setHistoryDetail(record)} />
-      {historyDetail && (
-        <HistoryDetail record={historyDetail} onClose={() => setHistoryDetail(null)} />
-      )}
+      <HistoryFab onSelectRecord={handleHistorySelect} />
     </>
   )
 }
