@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import ApkFileList from './ApkFileList'
+import { getPermissionInfo } from '../lib/permissions-map'
 
 // android: 命名空间属性映射
 const ANDROID_ATTRS = new Set([
@@ -362,6 +363,7 @@ const ComponentSection = ({ title, items, packageName, commandPrefix, onCopy, on
 const ApkInfoViewer = ({ apkInfo, fileInfo, apkFiles, onReset }) => {
   const [activeTab, setActiveTab] = useState('basic')
   const [toastMsg, setToastMsg] = useState(null)
+  const [permFilter, setPermFilter] = useState('')
 
   if (!apkInfo) return null
 
@@ -389,6 +391,7 @@ const ApkInfoViewer = ({ apkInfo, fileInfo, apkFiles, onReset }) => {
 
   // --- Data Extraction ---
   const { basicInfo, components, manifest } = apkInfo
+  const usesPermissions = apkInfo.usesPermissions || []
   const icon = basicInfo.icon
   const label = basicInfo.appName || '未知应用'
   const packageName = basicInfo.packageName
@@ -522,6 +525,7 @@ const ApkInfoViewer = ({ apkInfo, fileInfo, apkFiles, onReset }) => {
       <div style={{ display: 'flex', borderBottom: '1px solid #ddd', margin: '20px 20px 0 20px', overflowX: 'auto' }}>
         <div onClick={() => setActiveTab('basic')} style={tabStyle(activeTab === 'basic')}>基本信息</div>
         <div onClick={() => setActiveTab('components')} style={tabStyle(activeTab === 'components')}>组件</div>
+        <div onClick={() => setActiveTab('permissions')} style={tabStyle(activeTab === 'permissions')}>权限</div>
         <div onClick={() => setActiveTab('files')} style={tabStyle(activeTab === 'files')}>文件</div>
         <div onClick={() => setActiveTab('raw')} style={tabStyle(activeTab === 'raw')}>原始信息</div>
       </div>
@@ -588,6 +592,89 @@ const ApkInfoViewer = ({ apkInfo, fileInfo, apkFiles, onReset }) => {
               onCopyName={(name) => { handleCopy(name); showToast('已复制: ' + name) }}
               emptyText='无 ContentProvider'
             />
+          </div>
+        )}
+
+        {activeTab === 'permissions' && (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+              <div style={{ fontSize: '13px', color: '#666' }}>
+                共 {usesPermissions.length} 个权限
+                {usesPermissions.filter(p => getPermissionInfo(p.name).level === 'danger').length > 0 && (
+                  <span style={{ color: '#ff4d4f', marginLeft: '12px' }}>
+                    敏感 {usesPermissions.filter(p => getPermissionInfo(p.name).level === 'danger').length}
+                  </span>
+                )}
+              </div>
+              {usesPermissions.length > 5 && (
+                <input
+                  type='text'
+                  placeholder='搜索权限...'
+                  value={permFilter}
+                  onChange={e => setPermFilter(e.target.value)}
+                  style={{
+                    padding: '4px 8px',
+                    border: '1px solid #d9d9d9',
+                    borderRadius: '4px',
+                    fontSize: '12px',
+                    width: '160px',
+                    outline: 'none'
+                  }}
+                />
+              )}
+            </div>
+            {usesPermissions.length === 0
+              ? (
+                <div style={{ padding: '40px', textAlign: 'center', color: '#999' }}>无权限声明</div>
+                )
+              : (
+                  usesPermissions
+                    .filter(p => !permFilter || p.name.toLowerCase().includes(permFilter.toLowerCase()) || getPermissionInfo(p.name).desc.includes(permFilter))
+                    .map((perm, idx) => {
+                      const info = getPermissionInfo(perm.name)
+                      return (
+                        <div
+                          key={idx}
+                          style={{
+                            padding: '8px 0',
+                            borderBottom: '1px solid #f5f5f5',
+                            position: 'relative'
+                          }}
+                        >
+                          <div
+                            onClick={() => handleCopy(perm.name)}
+                            title={`点击复制\n${info.desc} (${info.levelLabel})`}
+                            style={{
+                              fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+                              fontSize: '12px',
+                              color: '#333',
+                              cursor: 'pointer',
+                              wordBreak: 'break-all',
+                              transition: 'color 0.2s'
+                            }}
+                            onMouseEnter={(e) => { e.target.style.color = '#007bff' }}
+                            onMouseLeave={(e) => { e.target.style.color = '#333' }}
+                          >
+                            {perm.name}
+                          </div>
+                          <div style={{ fontSize: '11px', color: '#999', marginTop: '2px' }}>
+                            {info.desc}
+                            <span style={{
+                              marginLeft: '8px',
+                              padding: '1px 6px',
+                              borderRadius: '3px',
+                              fontSize: '10px',
+                              color: '#fff',
+                              backgroundColor: info.levelColor
+                            }}
+                            >
+                              {info.levelLabel}
+                            </span>
+                          </div>
+                        </div>
+                      )
+                    })
+                )}
           </div>
         )}
 
